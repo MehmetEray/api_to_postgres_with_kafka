@@ -1,0 +1,21 @@
+{
+  "database": {
+    "host": "localhost",
+    "port": 5432,
+    "username": "my_username",
+    "password": "my_password",
+    "dbname": "my_database",
+    "target_table": "my_table"
+  },
+  "kafka": {
+    "bootstrap.servers": "localhost:9092,localhost:9093",
+    "topic": "my_topic",
+    "group_id": "my_consumer_group",
+    "auto_offset_reset": "earliest"
+  },
+  "api": {
+    "base_url": "https://jsonplaceholder.typicode.com/todos/1",
+    "api_key": "my_api_key"
+  },
+  "debug": true
+}
