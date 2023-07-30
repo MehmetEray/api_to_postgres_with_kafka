@@ -12,5 +12,5 @@ pip install -r requirements.txt
 python3 app.py
 
 
-### control center
+### kafdrop
 http://localhost:9000
