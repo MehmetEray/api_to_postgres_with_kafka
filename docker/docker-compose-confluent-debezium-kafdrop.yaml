@@ -1,0 +1,128 @@
+---
+version: '3.3'
+services:
+
+# Zookeeper, single node
+  postgres:
+    image: debezium/example-postgres:1.9
+    container_name: postgres
+    ports:
+      - 5433:5432
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    # docker exec -it 6687fc9a74e6 psql -U postgres
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    hostname: zookeeper
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  broker1:
+    image: confluentinc/cp-kafka:7.4.0
+    hostname: broker1
+    container_name: broker1
+    depends_on:
+      - zookeeper
+    ports:
+      - "29092:29092"
+      - "9092:9092"
+      - "9101:9101"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker1:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_JMX_PORT: 9101
+      KAFKA_JMX_HOSTNAME: localhost
+
+  broker2:
+    image: confluentinc/cp-kafka:7.4.0
+    hostname: broker2
+    container_name: broker2
+    depends_on:
+      - zookeeper
+    ports:
+      - "29093:29093"
+      - "9093:9093"
+      - "9102:9102"
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker2:29093,PLAINTEXT_HOST://localhost:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_JMX_PORT: 9102
+      KAFKA_JMX_HOSTNAME: localhost
+
+  # docker run --rm -it --name kafka-console-consumer --network container:kafka confluentinc/cp-kafka:latest kafka-console-consumer --bootstrap-server localhost:9092 --topic <topic-adı> --from-beginning
+
+    #kafdrop for topic/msg visualization
+  kafdrop:
+    image: obsidiandynamics/kafdrop
+    restart: "on-failure"
+    environment:
+      KAFKA_BROKERCONNECT: "broker1:29092,broker2:29093"
+      JVM_OPTS: "-Xms16M -Xmx512M -Xss180K -XX:-TieredCompilation -XX:+UseStringDeduplication -noverify"
+    ports:
+      - 9000:9000
+    depends_on:
+      - broker1
+      - broker2
+
+  # debezium connector
+  kconnect:
+    image: debezium/connect:1.9
+    ports:
+      - 8083:8083
+    environment:
+      CONFIG_STORAGE_TOPIC: my_connect_configs
+      OFFSET_STORAGE_TOPIC: my_connect_offsets
+      STATUS_STORAGE_TOPIC: my_connect_statuses
+      BOOTSTRAP_SERVERS: broker1:29092,broker2:29093
+    links:
+      - zookeeper
+      - postgres
+    depends_on:
+      - broker1
+      - broker2
+      - zookeeper
+      - postgres
+
+# 1. kafka & zookeeper --> docker
+# 2. kafdrop --> docker
+# 3. postgres --> docker
+# 4. debezium connector --> docker
+# 5. pgAdmin/DBeaver --> local system
+# 6. Postman --> local system
+
+# kafdrop ui -> http://localhost:9000/
+
+# POST  http://localhost:8083/connectors --> To register the kafka connector
+# {
+#   "name": "inventory-connector",
+#   "config": {
+#     "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+#     "database.hostname": "postgres",
+#     "database.port": "5432",
+#     "database.user": "postgres",
+#     "database.password": "postgres",
+#     "database.dbname" : "postgres",
+#     "database.server.name": "dbserver1",
+#     "table.include.list": "inventory.customers"
+#
+#   }
+# }
+
+# update inventory.customers set first_name = 'Cloud_Geek' where id = 1001
