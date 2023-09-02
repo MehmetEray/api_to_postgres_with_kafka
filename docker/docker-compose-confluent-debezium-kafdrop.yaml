@@ -125,4 +125,10 @@ services:
 #   }
 # }
 
+# docker ps
+# docker exec -it b4a922f60137 psql -U postgres
+# \c postgres
+# SELECT * FROM information_schema.tables;
+# select * from inventory.customers;
+
 # update inventory.customers set first_name = 'Cloud_Geek' where id = 1001
